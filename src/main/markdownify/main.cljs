@@ -2,10 +2,21 @@
   (:require [reagent.core :as reagent]
             ["showdown" :as showdown]))
 
+(defonce showdown-converter (showdown/Converter.))
+
+(defonce flash-message-timeout (reagent/atom nil))
+(defonce flash-message (reagent/atom nil))
 (defonce text-state (reagent/atom {:format :md
                                    :value ""}))
 
-(defonce showdown-converter (showdown/Converter.))
+(defn flash
+  ([text]
+   (flash text 3000))
+  ([text ms]
+   (js/clearTimeout @flash-message-timeout)
+   (reset! flash-message text)
+   (reset! flash-message-timeout
+           (js/setTimeout #(reset! flash-message nil) ms))))
 
 (defn md->html [md]
   (.makeHtml showdown-converter md))
@@ -41,6 +52,21 @@
 
 (defn app []
   [:div
+    [:div
+     {:style {:position :fixed
+              :top 0
+              :left "50%"
+              :max-width 250
+              :padding "1em"
+              :text-align :center
+              :background :yellow
+              :transform (if @flash-message
+                           "scaleY(1) translateX(-50%)"
+                           "scaleY(0) translateX(-50%)")
+              :transform-origin :top
+              :transition "transform 100ms ease-in"
+              :z-index 100}}
+     @flash-message]
     [:h1 "Markdownify"]
     [:div
       {:style {:display :flex}}
@@ -55,7 +81,9 @@
                     :height "500px"
                     :width "100%"}}]
         [:button
-         {:on-click #(copy-to-clipboard (->md @text-state))
+         {:on-click (fn []
+                      (copy-to-clipboard (->md @text-state))
+                      (flash "Markdown copied to clipboard!"))
           :style {:background-color :green
                   :padding "1em"
                   :color :white
@@ -73,7 +101,9 @@
                     :height "500px"
                     :width "100%"}}]
         [:button
-         {:on-click #(copy-to-clipboard (->html @text-state))
+         {:on-click (fn []
+                      (copy-to-clipboard (->html @text-state))
+                      (flash "HTML copied to clipboard!"))
           :style {:background-color :green
                   :padding "1em"
                   :color :white
